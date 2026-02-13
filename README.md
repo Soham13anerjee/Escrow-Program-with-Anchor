@@ -33,6 +33,25 @@ I built and iterated on a Solana Anchor escrow program that implements ERC‑sty
   - Anchor build/test (`anchor build`, `anchor test`) and generating TypeScript clients (`npx create-codama-clients`) as choreographed in [package.json](package.json) and [Anchor.toml](Anchor.toml).
   - Managing warnings and toolchain quirks (e.g., SBF/Cargo/Anchor versions listed in [README.md](README.md) and the CHANGELOG).
 
+## ⛓️ Cross-Program Invocation (CPI) & Vault Mastery
+
+The core "magic" of this Escrow program is its ability to talk to other programs on-chain. Here is what I mastered:
+
+### 1. The CpiContext Pattern
+I learned that to move tokens, my program must "ask" the SPL Token Program to do it. I implemented `CpiContext` to bundle the necessary accounts and instructions:
+* **Shared Helpers:** Created a `transfer_tokens` helper in `shared.rs` to keep the code DRY (Don't Repeat Yourself).
+* **Instruction Passing:** Learned how to pass the `token_program` account and build `Transfer` structs for the CPI.
+
+### 2. Signing with Seeds (PDA Power)
+Since a PDA doesn't have a private key, it cannot sign a transaction normally.
+* **Problem:** How does the "Vault" send tokens to the Taker?
+* **Solution:** I used `CpiContext::new_with_signer`. By passing the seeds (e.g., `b"offer"`, `maker_key`, `id`) and the `bump`, the Solana runtime verifies the seeds and allows my program to sign on behalf of the Vault.
+
+### 3. Anchor Account Constraints
+I used Anchor’s powerful macros to automate security checks that would otherwise require dozens of lines of manual code:
+- `has_one = maker`: Ensures only the original creator can cancel an offer.
+- `constraint = ...`: Custom logic to verify that the taker is sending the correct amount and type of token.
+
 ## Problems I solved / gotchas
 
 - Ensuring vault ATAs are owned by the PDA so the program can sign with PDA seeds for withdrawals.
@@ -56,6 +75,3 @@ I built and iterated on a Solana Anchor escrow program that implements ERC‑sty
 - Consider adding event logs for easier off‑chain indexing.
 - Add CI checks to ensure Anchor/solana versions remain pinned and tests run on the same toolchain.
 
----
-
-If you want this filed under a different path/name, or want the tone changed (shorter / more technical / tutorial style), tell me where or which style and I will create an updated version.
